@@ -18,6 +18,54 @@ conda create -n misaka-writer python=3.8
 conda activate misaka-writer
 conda install -c conda-forge pandas cudatoolkit=10.1 cudnn
 pip install tensorflow-gpu==2.2.0 keras==2.3.1 sklearn==0.0 pandas 
+conda install cudatoolkit=10.1 cudnn=7.6
+```
+  
+ 对于 30系以后的卡，推荐tensorflow 2.5.0：
+```sh
+conda create -n misaka-writer python=3.8
+conda activate misaka-writer
+conda install -c conda-forge pandas cudatoolkit=10.1 cudnn
+pip install tensorflow-gpu==2.5.0  sklearn==0.0 pandas 
+conda install cudatoolkit=11.2 cudnn=8.1
 ```
 
+对于 A卡可以使用tensorflow-directml（只限 Windows 10/11 或 wsl，此版本不需要安装 CUDA）：
 
+```sh
+conda create -n misaka-writer python=3.7
+conda activate misaka-writer
+conda install -c conda-forge pandas
+pip install tensorflow-directml==2.2 keras==2.3.1 sklearn sklearn==0.0 pandas 
+```
+
+## 使用方法
+
+推理见 `generate_cache.py`，基本上用的是 V1 的优化器，此外对 cpu 写了简单的 cache 优化。
+
+`model_path` 是模型的权重路径。
+
+`num` 代表生成的下文的数量。 `text` 为输入，建议输入在 20 到 128 字之间。
+第一次生成会比较慢，因为要编译，后面就快了  
+
+微调见 `finetuning.py`，具体参数注释给出来了，注意的是读取的是一个文件夹下全部的csv进行训练，csv的参考格式在data文件夹里  
+因为模型比较大所以默认os.environ['RECOMPUTE'] = '1'，也就是开启重计算。如果不差卡嫌慢可以直接注释掉的  
+ 
+## 模型权重
+  
+因为模型比较大就不放qq了，这次都丢百度云供下载    
+权重里带expand的是扩写模型，其他是续写模型  
+通过百度网盘分享的文件：misaka-v…  
+链接:https://pan.baidu.com/s/1vhgxnJ9-snIvXbxthpHZfg?pwd=h69i   
+提取码:h69i  
+复制这段内容打开「百度网盘APP 即可获取」  
+
+
+## 社区
+
+如有问题可加 Q 群905398734（本项目群），本人 qq 935499957
+
+---
+
+最后用ai生成的misaka镇楼  
+![QQ图片20221109142639](https://user-images.githubusercontent.com/62837036/200754613-febeb470-7e27-4347-9b31-340e090b87ab.png)
