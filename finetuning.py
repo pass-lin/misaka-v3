@@ -94,7 +94,6 @@ if True:
     decoder=misaka.decoder
         
 
-from tiger import Tiger
 optimizer = AdaFactor(
     learning_rate=2e-5,
 )
