@@ -12,7 +12,7 @@ max_len = 512  # 最大长度
 repeat_punish = 0.95  # 惩罚因子
 config_path = "misaka_v3.json"  # config路径
 vocab_path = "vocab.txt"  # 词表路径
-model_path = "20_expand.h5"  # 模型路径
+model_path = "misaka_v3.h5"  # 模型路径
 # 开头
 
 

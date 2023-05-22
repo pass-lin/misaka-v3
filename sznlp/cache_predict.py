@@ -104,7 +104,7 @@ class Seq2SeqGenerate_Cache:
 
         for step in range(max_len):
             #
-            print(" \r{} ".format(step), end="")
+            # print(" \r{} ".format(step), end="")
 
             decoder_out = output_ids[end_token][:, -1]
             scores = self.DcoderPredict(
@@ -196,5 +196,5 @@ class Seq2SeqGenerate_Cache:
             for y in ys:
                 t = [int(a) for a in y]
                 result.append(self.tokenizer.decode(t))
-        print("\n")
+        # print("\n")
         return result
