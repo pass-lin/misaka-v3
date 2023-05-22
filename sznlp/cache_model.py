@@ -14,22 +14,23 @@ class Add(Layer):
 
 
 class GatedAttentionUnit_cross_cache(GatedAttentionUnit_cross):
-    def __init__(self,cross_att=True,**kwargs):
+    def __init__(self, cross_att=True, **kwargs):
         super(GatedAttentionUnit_cross_cache, self).__init__(**kwargs)
-        self.cross_att=cross_att
+        self.cross_att = cross_att
+
     def get_config(self):
         config = {
-            'cross_att':self.cross_att,
+            "cross_att": self.cross_att,
         }
         base_config = super(GatedAttentionUnit_cross_cache, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-    
+
     def call(self, inputs, mask=None, a_bias=False, p_bias=None, **kwargs):
         if not isinstance(inputs, list):
             inputs, mask = [inputs], [mask]
-        x,c= inputs[:2]
-        n=2
-        
+        x, c = inputs[:2]
+        n = 2
+
         if a_bias:
             a_bias = inputs[n]
             n += 1
@@ -42,46 +43,44 @@ class GatedAttentionUnit_cross_cache(GatedAttentionUnit_cross):
                 or K.int_shape(kwargs.get("c_cache"))[1] != K.int_shape(c)[1]
             ):
                 c = self.kv_dense(c)
-    
+
             else:
                 c = kwargs.get("c_cache")
         else:
             c = self.kv_dense(c)
-        
+
         # 加入RoPE
         if self.low_rank:
-            v,k = tf.split(c, [self.key_size, self.key_size], axis=-1)
+            v, k = tf.split(c, [self.key_size, self.key_size], axis=-1)
         else:
-            v,k = tf.split(c, [self.units, self.key_size], axis=-1)
-        
-        s=q
+            v, k = tf.split(c, [self.units, self.key_size], axis=-1)
+
+        s = q
         if p_bias == "rotary":
             q, k = apply_rotary_position_embeddings(inputs[n], q, k)
-        if self.cross_att==False:  
+        if self.cross_att == False:
             k = tf.concat([kwargs.get("k_cache"), k], axis=1)
             v = tf.concat([kwargs.get("v_cache"), v], axis=1)
         # Attention
-        
-        
-        a = tf.matmul(q, tf.transpose(k,[0,2,1]))
-        
+
+        a = tf.matmul(q, tf.transpose(k, [0, 2, 1]))
+
         if self.attention_scale:
             a = a / self.key_size**0.5
-        
+
         A = attention_normalize(a, None, -1, self.normalization, a_bias)
         if self.attention_dropout:
             A = Dropout(self.attention_dropout)(A)
-            
 
         # 计算输出
-        A=tf.matmul(A, v)#tf.einsum('bmn,bnd->bmd', A, v)
+        A = tf.matmul(A, v)  # tf.einsum('bmn,bnd->bmd', A, v)
         if self.low_rank:
             A = self.high_rank(A)
         o = self.o_dense(u * A)
 
         if self.cross_att:
             return [o, c]
-        return [o,k,v]
+        return [o, k, v]
 
     def compute_output_shape(self, input_shape):
         o_shape = (input_shape[0][0], input_shape[0][1], input_shape[0][-1])
@@ -91,7 +90,7 @@ class GatedAttentionUnit_cross_cache(GatedAttentionUnit_cross):
 
 
 class GatedAttentionUnit_cache(GatedAttentionUnit):
-    #第一个版本走的cache，给v2使用的，用了scaleoffset区分kv
+    # 第一个版本走的cache，给v2使用的，用了scaleoffset区分kv
     def call(self, inputs, mask=None, a_bias=None, p_bias=None, **kwargs):
         if not isinstance(inputs, list):
             inputs, mask = [inputs], [mask]
@@ -114,15 +113,15 @@ class GatedAttentionUnit_cache(GatedAttentionUnit):
         v = tf.concat([kwargs.get("v_cache"), v], axis=1)
 
         # Attention
-        a = tf.einsum('bmd,bnd->bmn', q, k)
+        a = tf.einsum("bmd,bnd->bmn", q, k)
         if self.attention_scale:
             a = a / self.key_size**0.5
-        
-        A = attention_normalize(a,None, -1, self.normalization, a_bias)
+
+        A = attention_normalize(a, None, -1, self.normalization, a_bias)
         if self.attention_dropout:
             A = Dropout(self.attention_dropout)(A)
         # 计算输出
-        A=tf.einsum('bmn,bnd->bmd', A, v)
+        A = tf.einsum("bmn,bnd->bmd", A, v)
         o = self.o_dense(u * A)
         return [o, k, v]
 
@@ -131,6 +130,7 @@ class GatedAttentionUnit_cache(GatedAttentionUnit):
         kw_shape = (input_shape[0], input_shape[1], self.key_size)
         vw_shape = (input_shape[0], input_shape[1], self.units)
         return [o_shape, kw_shape, vw_shape]
+
 
 class SinusoidalPositionEmbedding_cache(SinusoidalPositionEmbedding):
     """定义Sin-Cos位置Embedding"""
@@ -160,7 +160,6 @@ class SinusoidalPositionEmbedding_cache(SinusoidalPositionEmbedding):
             embeddings = K.stack([K.sin(embeddings), K.cos(embeddings)], axis=-1)
             embeddings = K.flatten(embeddings, 2)
         else:
-
             embeddings = self.embeddings[: K.shape(k_cache)[1] + 1][-1]
             embeddings = K.reshape(embeddings, [1, 1, self.output_dim])
         return embeddings
@@ -177,7 +176,6 @@ class Misaka_decoder_cache(Misaka_decoder):
     def compute_position_bias(self, inputs=None):
         """Sinusoidal位置编码（直接返回）"""
         if self.position_bias is None:
-
             self.position_bias = self.apply(
                 inputs=inputs,
                 layer=SinusoidalPositionEmbedding_cache,
@@ -255,7 +253,6 @@ class Misaka_decoder_cache(Misaka_decoder):
         self.cache_outputs.append(k)
         self.cache_outputs.append(v)
 
-
         x = self.apply(inputs=[xi, x], layer=Add, name="%s-Add" % self_attention_1_name)
         x = self.apply(
             inputs=x,
@@ -286,7 +283,6 @@ class Misaka_decoder_cache(Misaka_decoder):
             },
         )
         self.cache_outputs.append(cache_c)
-
 
         x = self.apply(inputs=[xi, x], layer=Add, name="%s-Add" % cross_attention_name)
         x = self.apply(
@@ -387,6 +383,8 @@ class Misaka_decoder_cache(Misaka_decoder):
 
         self.model = Model(self.inputs, self.outputs, name=self.name)
         self.built = True
+
+
 class Misaka_decoder_cache_v3(Misaka_decoder_cache):
     def apply_main_layers(self, inputs, index):
         """Misaka-encoder 的主体是基于Gated Attention Unit的模块
@@ -394,18 +392,18 @@ class Misaka_decoder_cache_v3(Misaka_decoder_cache):
         """
         c, x = inputs
 
-        self_attention_1_name='Misaka-Dncoder-%d-GatedAttentionUnit-1' % index
+        self_attention_1_name = "Misaka-Dncoder-%d-GatedAttentionUnit-1" % index
         k_cache_1 = keras.layers.Input(
             [None, self.attention_key_size], name=self_attention_1_name + "-kcache"
         )
-        
+
         self.cache_inputs.append(k_cache_1)
         v_cache_1 = keras.layers.Input(
             [None, self.attention_key_size], name=self_attention_1_name + "-vcache"
         )
         self.cache_inputs.append(v_cache_1)
 
-        cross_attention_name = 'Misaka-Dncoder-%d-GatedAttentionUnit-cross' % index
+        cross_attention_name = "Misaka-Dncoder-%d-GatedAttentionUnit-cross" % index
 
         c_cache_cross = keras.layers.Input(
             [None, self.attention_key_size + self.attention_key_size],
@@ -420,8 +418,8 @@ class Misaka_decoder_cache_v3(Misaka_decoder_cache):
 
         # GAU-1
         xi = x
-        x = [x, x,position_bias]
-        arguments = {'a_bias': None, 'p_bias': 'rotary'}
+        x = [x, x, position_bias]
+        arguments = {"a_bias": None, "p_bias": "rotary"}
 
         x, k, v = self.apply(
             inputs=x,
@@ -430,7 +428,7 @@ class Misaka_decoder_cache_v3(Misaka_decoder_cache):
             key_size=self.attention_key_size,
             activation=self.hidden_act,
             use_bias=False,
-            normalization='softmax_plus',
+            normalization="softmax_plus",
             attention_dropout=self.attention_dropout_rate,
             kernel_initializer=self.initializer,
             low_rank=True,
@@ -443,36 +441,32 @@ class Misaka_decoder_cache_v3(Misaka_decoder_cache):
                 "v_cache": v_cache_1,
             },
         )
-        
+
         self.cache_outputs.append(k)
         self.cache_outputs.append(v)
 
+        x = self.apply(inputs=[xi, x], layer=Add, name="%s-Add" % self_attention_1_name)
 
-        x = self.apply(
-            inputs=[xi, x], layer=Add, name='%s-Add' % self_attention_1_name
-        )
-        
         x = self.apply(
             inputs=x,
             layer=LayerNormalization,
             zero_mean=False,
             scale=True,
             offset=False,
-            name='%s-RMSNorm' % self_attention_1_name
-        ) 
+            name="%s-RMSNorm" % self_attention_1_name,
+        )
 
         # Cross Attention
         xi = x
 
-        
         x, cache_c = self.apply(
             layer=GatedAttentionUnit_cross_cache,
-            inputs=[x,c],
+            inputs=[x, c],
             units=self.intermediate_size,
             key_size=self.attention_key_size,
             activation=self.hidden_act,
             use_bias=False,
-            normalization='softmax_plus',
+            normalization="softmax_plus",
             attention_dropout=self.attention_dropout_rate,
             kernel_initializer=self.initializer,
             low_rank=True,
@@ -484,48 +478,44 @@ class Misaka_decoder_cache_v3(Misaka_decoder_cache):
             },
         )
         self.cache_outputs.append(cache_c)
-        
-        x = self.apply(
-            inputs=[xi, x], layer=Add, name='%s-Add' % cross_attention_name
-        )
-         
+
+        x = self.apply(inputs=[xi, x], layer=Add, name="%s-Add" % cross_attention_name)
+
         x = self.apply(
             inputs=x,
             layer=LayerNormalization,
             zero_mean=False,
             scale=True,
             offset=False,
-            name='%s-RMSNorm' % cross_attention_name
+            name="%s-RMSNorm" % cross_attention_name,
         )
 
         # FFN
-        
-        xi=x
+
+        xi = x
         x = self.apply(
             inputs=x,
             layer=FeedForward,
             units=self.intermediate_size,
-            activation=[self.hidden_act,'linear'],
+            activation=[self.hidden_act, "linear"],
             use_bias=False,
             kernel_initializer=self.initializer,
-            name=feed_forward_name
+            name=feed_forward_name,
         )
         x = self.apply(
             inputs=x,
             layer=Dropout,
             rate=self.dropout_rate,
-            name='%s-Dropout' % feed_forward_name
+            name="%s-Dropout" % feed_forward_name,
         )
-        x = self.apply(
-            inputs=[xi, x], layer=Add, name='%s-Add' % feed_forward_name
-        )
+        x = self.apply(inputs=[xi, x], layer=Add, name="%s-Add" % feed_forward_name)
         x = self.apply(
             inputs=x,
             layer=LayerNormalization,
             zero_mean=False,
             scale=True,
             offset=False,
-            name='%s-RMSNorm' % feed_forward_name
+            name="%s-RMSNorm" % feed_forward_name,
         )
 
         return [c, x]

@@ -412,11 +412,9 @@ class DataGenerator(object):
         如果传入names的话，自动把数据包装成dict形式。
         """
         if names is None:
-
             generator = self.forfit
 
         else:
-
             if is_string(names):
                 warps = lambda k, v: {k: v}
             elif is_string(names[0]):
@@ -768,7 +766,6 @@ class WebServing(object):
     """
 
     def __init__(self, host="0.0.0.0", port=8000, server="paste"):
-
         import bottle
 
         self.host = host

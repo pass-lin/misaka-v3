@@ -12,8 +12,7 @@ from .snippets import insert_arguments, is_one_of, is_string, string_matching
 
 
 def root_mean_square(x, axis=None, keepdims=False):
-    """Root Mean Square
-    """
+    """Root Mean Square"""
     return tf.sqrt(tf.reduce_mean(x**2, axis=axis, keepdims=keepdims))
 
 
@@ -55,6 +54,7 @@ class Tiger(tf.keras.optimizers.Optimizer):
     Link1: https://kexue.fm/archives/9512
     Link2: https://github.com/bojone/tiger
     """
+
     def __init__(
         self,
         learning_rate=1e-3,
@@ -63,7 +63,7 @@ class Tiger(tf.keras.optimizers.Optimizer):
         grad_accum_steps=1,
         lr_schedule={0: 1},
         shrink_ratio=0.99,
-        name='tiger',
+        name="tiger",
         **kwargs
     ):
         super(Tiger, self).__init__(name, **kwargs)
@@ -76,7 +76,7 @@ class Tiger(tf.keras.optimizers.Optimizer):
 
     def _create_slots(self, var_list):
         for var in var_list:
-            self.add_slot(var, 'm')
+            self.add_slot(var, "m")
 
     def _prepare(self, var_list):
         t = self.iterations
@@ -92,18 +92,16 @@ class Tiger(tf.keras.optimizers.Optimizer):
         return super(Tiger, self)._prepare(var_list)
 
     def _resource_apply(self, grad, var, indices=None):
-        t, d, k, s, b1, b2, lr = [
-            tf.cast(x, var.dtype) for x in self._coefficients
-        ]
+        t, d, k, s, b1, b2, lr = [tf.cast(x, var.dtype) for x in self._coefficients]
         g = tf.where(tf.is_nan(grad), tf.zeros_like(grad), grad)
-        m = self.get_slot(var, 'm')
+        m = self.get_slot(var, "m")
 
         mu = 0
-        if re.findall('bias|beta|gamma', var.name):
+        if re.findall("bias|beta|gamma", var.name):
             lr, d = lr * 0.5, 0
-            if 'gamma' in var.name:
+            if "gamma" in var.name:
                 mu = 1
-        elif 'embeddings' in var.name:
+        elif "embeddings" in var.name:
             print(var)
             lr = lr * root_mean_square(var, axis=-1, keepdims=True)
         else:
@@ -129,39 +127,42 @@ class Tiger(tf.keras.optimizers.Optimizer):
 
     def get_config(self):
         config = {
-            'learning_rate': self.learning_rate,
-            'beta': self.beta,
-            'weight_decay': self.weight_decay,
-            'grad_accum_steps': self.grad_accum_steps,
-            'lr_schedule': self.lr_schedule,
-            'shrink_ratio': self.shrink_ratio,
+            "learning_rate": self.learning_rate,
+            "beta": self.beta,
+            "weight_decay": self.weight_decay,
+            "grad_accum_steps": self.grad_accum_steps,
+            "lr_schedule": self.lr_schedule,
+            "shrink_ratio": self.shrink_ratio,
         }
         base_config = super(Tiger, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
 class Lion(keras.optimizers.Optimizer):
     """Lion优化器
     （tensorflow的optimizer_v2类）
     论文链接：https://arxiv.org/abs/2302.06675
     """
+
     def __init__(self, learning_rate=3e-4, beta_1=0.95, beta_2=0.98, **kwargs):
-        kwargs['name'] = kwargs.get('name') or 'Lion'
+        kwargs["name"] = kwargs.get("name") or "Lion"
         super(Lion, self).__init__(**kwargs)
-        self._set_hyper('learning_rate', learning_rate)
-        self._set_hyper('beta_1', beta_1)
-        self._set_hyper('beta_2', beta_2)
+        self._set_hyper("learning_rate", learning_rate)
+        self._set_hyper("beta_1", beta_1)
+        self._set_hyper("beta_2", beta_2)
 
     def _create_slots(self, var_list):
         for var in var_list:
-            self.add_slot(var, 'm')
+            self.add_slot(var, "m")
 
     def _resource_apply(self, grad, var, indices=None):
         # 准备变量
 
         var_dtype = var.dtype.base_dtype
         lr_t = self._decayed_lr(var_dtype)
-        m = self.get_slot(var, 'm')
-        beta_1_t = self._get_hyper('beta_1', var_dtype)
-        beta_2_t = self._get_hyper('beta_2', var_dtype)
+        m = self.get_slot(var, "m")
+        beta_1_t = self._get_hyper("beta_1", var_dtype)
+        beta_2_t = self._get_hyper("beta_2", var_dtype)
 
         # 更新公式
         u_t = K.sign(beta_1_t * m + (1 - beta_1_t) * grad)
@@ -171,9 +172,7 @@ class Lion(keras.optimizers.Optimizer):
                 m_t = K.update(m, beta_2_t * m + (1 - beta_2_t) * grad)
             else:
                 with tf.control_dependencies([K.update(m, beta_2_t * m)]):
-                    m_t = self._resource_scatter_add(
-                        m, indices, (1 - beta_2_t) * grad
-                    )
+                    m_t = self._resource_scatter_add(m, indices, (1 - beta_2_t) * grad)
         return m_t
 
     def _resource_apply_dense(self, grad, var):
@@ -184,9 +183,9 @@ class Lion(keras.optimizers.Optimizer):
 
     def get_config(self):
         config = {
-            'learning_rate': self._serialize_hyperparameter('learning_rate'),
-            'beta_1': self._serialize_hyperparameter('beta_1'),
-            'beta_2': self._serialize_hyperparameter('beta_2'),
+            "learning_rate": self._serialize_hyperparameter("learning_rate"),
+            "beta_1": self._serialize_hyperparameter("beta_1"),
+            "beta_2": self._serialize_hyperparameter("beta_2"),
         }
         base_config = super(Lion, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -621,7 +620,7 @@ def extend_with_layer_adaptation(BaseOptimizer):
             def new_update(x, new_x):
                 if is_one_of(x, params) and self._do_layer_adaptation(x):
                     dx = new_x - x
-                    lr_t = K.clip(self.learning_rate, K.epsilon(),1e7)
+                    lr_t = K.clip(self.learning_rate, K.epsilon(), 1e7)
                     x_norm = tf.norm(x)
                     g_norm = tf.norm(dx / lr_t)
                     ratio = K.switch(

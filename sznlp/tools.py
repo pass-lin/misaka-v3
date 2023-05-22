@@ -13,9 +13,12 @@ from sklearn.utils import shuffle
 
 from .my_bert4keras.snippets import sequence_padding
 from .my_bert4keras.backend import is_tf_keras
+
 datas = []
 
-times=[]
+times = []
+
+
 def sample_data(filenames, funtion, max_data_num=2):
     global datas
     while True:
@@ -69,7 +72,6 @@ class DataGenerator(object):
     def forfit(self, random=False):
         n = 1
         while True:
-
             yield from self.__iter__(random)
             print(f"完成第{str(n)}个文件的训练")
             n += 1
@@ -85,7 +87,7 @@ class seq2seq_Generate:
         end_token=None,  # 结束token
         repeat_punish=0.99,
     ):
-        self.repeat_punish=repeat_punish
+        self.repeat_punish = repeat_punish
         self.encoder = encoder
         self.decoder = decoder
         self.tokenizer = tokenizer
@@ -163,8 +165,7 @@ class seq2seq_Generate:
     def topp_sample(self, y, k=0.8):
         y = y[:, -1, :]
         # y=K.softmax(y,-1)#先计算真实预测分布
-        
-            
+
         probility = np.argsort(y, axis=-1)
 
         y_pre = []
@@ -207,37 +208,36 @@ class seq2seq_Generate:
         n = 0
         encoder_out = self.encoder_predict(data, batch_size)
         stop = np.zeros(l)
-        
+
         while sum(stop[:] == self.end_token) != l and n <= max_len:
-            
-            s1=time.time()
+            s1 = time.time()
             n += 1
             print(" \r{} ".format(n), end="")
             index = stop[:] != self.end_token  # 找出预测完的序列
 
             # 只预测没预测完的序列以节省资源
             decoder_input, vector = self.select(encoder_out, decode_result, index)
-            s2=time.time()
+            s2 = time.time()
             # 解码
             y = self.decoder_predict(vector, decoder_input, batch_size)
             # 计算概率分布
-            s3=time.time()
-            if self.repeat_punish>0 and self.repeat_punish<1:
+            s3 = time.time()
+            if self.repeat_punish > 0 and self.repeat_punish < 1:
                 for ii in range(len(decode_result)):
                     for tt in decode_result[ii]:
-                        tt=int(tt)
+                        tt = int(tt)
                         if tt != 0:
-                            y[ii][-1][tt] = y[ii][-1][ tt]*self.repeat_punish
-            s4=time.time()
+                            y[ii][-1][tt] = y[ii][-1][tt] * self.repeat_punish
+            s4 = time.time()
             y = sample(y, k)
-            s5=time.time()
+            s5 = time.time()
             stop[index] = y[:, -1]
             t = np.zeros([l])
             t[index] = y[:, -1]
             t = np.reshape(t, [l, 1])
             decode_result = np.concatenate([decode_result, t], -1)
-            s6=time.time()
-            times.append([s3-s2])
+            s6 = time.time()
+            times.append([s3 - s2])
             if step_callback:
                 step_callback(int(sum(stop[:] != self.end_token)), n)
         return decode_result, stop
@@ -321,8 +321,8 @@ class seq2seq_Generate:
         step_callback=None,
         repeat_punish=None,
     ):
-        if repeat_punish!=None:
-            self.repeat_punish=repeat_punish
+        if repeat_punish != None:
+            self.repeat_punish = repeat_punish
         result = []
         l = len(data)
         if l < iter_data_num:
@@ -363,9 +363,9 @@ class seq2seq_Generate:
         repeat_punish=None,
     ):
         if is_tf_keras:
-            iter_data_num=batch_size
-        if repeat_punish!=None:
-            self.repeat_punish=repeat_punish
+            iter_data_num = batch_size
+        if repeat_punish != None:
+            self.repeat_punish = repeat_punish
         data = self.load_data(data, nums)
         ys = self.generate_sentence(
             data,
@@ -383,27 +383,29 @@ class seq2seq_Generate:
         except Exception:
             # 如果用的是SpTokenizer需要手动转成int的列表才能用
             for y in ys:
-
                 t = [int(a) for a in y]
                 result.append(self.tokenizer.decode(t))
         return result
+
+
 class seq2seq_Generate_expand(seq2seq_Generate):
     def load_data(self, datas, nums=5):
-        x1,x2 = [],[]
-        for a,b in datas:
-            if a=='':
-                x0=np.array([self.tokenizer.token_to_id('叇')])
+        x1, x2 = [], []
+        for a, b in datas:
+            if a == "":
+                x0 = np.array([self.tokenizer.token_to_id("叇")])
             else:
                 x0 = self.tokenizer.encode(a)[0]
             x1.extend(x0 for _ in range(nums))
-            if b=='':
-                x0=np.array([self.tokenizer.token_to_id('叞')])
+            if b == "":
+                x0 = np.array([self.tokenizer.token_to_id("叞")])
             else:
                 x0 = self.tokenizer.encode(b)[0]
             x2.extend(x0 for _ in range(nums))
-        x=sequence_padding(x1+x2)
-        #print(np.split(x,2,0))
-        return np.split(x,2,0)
+        x = sequence_padding(x1 + x2)
+        # print(np.split(x,2,0))
+        return np.split(x, 2, 0)
+
     def random_decoder(
         self,
         data,
